@@ -309,12 +309,6 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
   char *cp;
   int i;
 
-  /* Allocate and activate page directory. */
-  t->pagedir = pagedir_create ();
-  if (t->pagedir == NULL) 
-    goto done;
-  process_activate ();
-
   /* Extract file_name from command line. */
   while (*cmd_line == ' ')
     cmd_line++;
