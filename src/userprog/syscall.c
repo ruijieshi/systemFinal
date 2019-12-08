@@ -154,13 +154,13 @@ static char *
 copy_in_string (const char *us) 
 {
   char *ks;
-  size_t length;
+  size_t i;
  
   ks = palloc_get_page (0);
   if (ks == NULL) 
     thread_exit ();
 
-  for (size_t i = 0; i < PGSIZE; i++)
+  for (i = 0; i < PGSIZE; i++)
     {
       if (us >= (char*) PHYS_BASE || !get_user(i + ks, us++)) {
           palloc_free_page(ks);
@@ -499,7 +499,7 @@ void syscall_exit (void)
 }
 
 void validate_user_ptr(const void *user_ptr) {
-    if (!is_user_vaddr(user_ptr) || user_ptr  < 0x08048000)
+    if (!is_user_vaddr(user_ptr) || user_ptr  < ((void *) 0x08048000))
         sys_exit(-1);
 
     void *valid_ptr = pagedir_get_page(thread_current()->pagedir, user_ptr);
