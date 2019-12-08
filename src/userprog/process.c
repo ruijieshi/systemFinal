@@ -8,6 +8,7 @@
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
+#include "userprog/syscall.h"
 #include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
@@ -18,8 +19,8 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-#include "vm/page.h"
-#include "vm/frame.h"
+//#include "vm/page.h"
+//#include "vm/frame.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmd_line, void (**eip) (void), void **esp);
@@ -95,6 +96,7 @@ start_process (void *exec_)
   if (success) 
     {
       lock_init (&exec->wait_status->lock);
+      exec->wait_status->exit_code = -1;
       exec->wait_status->ref_cnt = 2;
       exec->wait_status->tid = thread_current ()->tid;
       sema_init (&exec->wait_status->dead, 0);
@@ -184,9 +186,6 @@ process_exit (void)
       next = list_remove (e);
       release_child (cs);
     }
-
-  /* Destroy the page hash table. */
-  page_exit ();
   
   /* Close executable (and allow writes). */
   file_close (cur->bin_file);
@@ -325,7 +324,7 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
-  file_deny_write (t->bin_file);
+  file_deny_write (file);
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -481,23 +480,33 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
+  file_seek (file, ofs);
 
-  while (read_bytes > 0 || zero_bytes > 0) 
+  while (read_bytes > 0 || zero_bytes > 0)
     {
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
-      struct page *p = page_allocate (upage, !writable);
-      if (p == NULL)
-        return false;
-      if (page_read_bytes > 0) 
-        {
-          p->file = file;
-          p->file_offset = ofs;
-          p->file_bytes = page_read_bytes;
-        }
+      uint8_t *cur_page = palloc_get_page (PAL_USER);
+
+      if (cur_page == NULL) {
+          return false;
+      }
+
+      if (file_read (file, cur_page, page_read_bytes) != (int) page_read_bytes) {
+          palloc_free_page(cur_page);
+          return false;
+      }
+
+      memset (cur_page + page_read_bytes, 0, page_zero_bytes);
+
+      if (!(pagedir_get_page (thread_current()->pagedir, upage) == NULL
+                && pagedir_set_page (thread_current()->pagedir, upage, cur_page, writable))) {
+          palloc_free_page (cur_page);
+          return false;
+      }
+
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
-      ofs += page_read_bytes;
       upage += PGSIZE;
     }
   return true;
@@ -590,19 +599,17 @@ init_cmd_line (uint8_t *kpage, uint8_t *upage, const char *cmd_line,
 static bool
 setup_stack (const char *cmd_line, void **esp) 
 {
-  struct page *page = page_allocate (((uint8_t *) PHYS_BASE) - PGSIZE, false);
-  if (page != NULL) 
+    uint8_t *cur_page = palloc_get_page (PAL_USER | PAL_ZERO);
+
+    if (cur_page != NULL)
     {
-      page->frame = frame_alloc_and_lock (page);
-      if (page->frame != NULL)
-        {
-          bool ok;
-          page->read_only = false;
-          page->private = false;
-          ok = init_cmd_line (page->frame->base, page->addr, cmd_line, esp);
-          frame_unlock (page->frame);
-          return ok;
-        }
+        uint8_t *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
+        if (pagedir_get_page (thread_current ()->pagedir, upage) == NULL
+            && pagedir_set_page (thread_current ()->pagedir, upage, cur_page, writable))
+            return init_cmd_line (cur_page, upage, cmd_line, esp);
+        else
+            palloc_free_page (cur_page);
     }
-  return false;
+
+    return false;
 }
