@@ -419,10 +419,12 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
 }
 
 static bool
-can_install_page (void *upage, void *cur_page, bool writable)
+install_page (void *upage, void *cur_page, bool writable)
 {
     struct thread *t = thread_current ();
 
+    /* Verify that there's not already a page at that virtual
+       address, then map our page there. */
     return (pagedir_get_page (t->pagedir, upage) == NULL
             && pagedir_set_page (t->pagedir, upage, cur_page, writable));
 }
@@ -493,27 +495,31 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
     ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
     ASSERT (pg_ofs (upage) == 0);
     ASSERT (ofs % PGSIZE == 0);
-    file_seek (file, ofs);
 
+    file_seek (file, ofs);
     while (read_bytes > 0 || zero_bytes > 0)
     {
+        /* Calculate how to fill this page.
+           We will read PAGE_READ_BYTES bytes from FILE
+           and zero the final PAGE_ZERO_BYTES bytes. */
         size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
         size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+        /* Get a page of memory. */
         uint8_t *cur_page = palloc_get_page (PAL_USER);
-
-        if (cur_page == NULL) {
+        if (cur_page == NULL)
             return false;
-        }
 
+        /* Load this page. */
         if (file_read (file, cur_page, page_read_bytes) != (int) page_read_bytes)
         {
             palloc_free_page (cur_page);
             return false;
         }
-
         memset (cur_page + page_read_bytes, 0, page_zero_bytes);
 
-        if (!can_install_page (upage, cur_page, writable))
+        /* Add the page to the process's address space. */
+        if (!install_page (upage, cur_page, writable))
         {
             palloc_free_page (cur_page);
             return false;
@@ -615,19 +621,15 @@ static bool
 setup_stack (const char *cmd_line, void **esp)
 {
     uint8_t *cur_page;
+
     cur_page = palloc_get_page (PAL_USER | PAL_ZERO);
-
-    if (cur_page == NULL) {
-        return false;
+    if (cur_page != NULL)
+    {
+        uint8_t *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
+        if (install_page (upage, cur_page, true))
+            return init_cmd_line (cur_page, upage, cmd_line, esp);
+        else
+            palloc_free_page (cur_page);
     }
-
-    uint8_t *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
-
-    if (can_install_page (upage, cur_page, true)) {
-        return init_cmd_line (cur_page, upage, cmd_line, esp);
-    }
-
-    palloc_free_page(cur_page);
-
     return false;
 }
