@@ -141,7 +141,7 @@ copy_in (void *dst_, const void *src_, size_t size)
   const uint8_t *src = src_;
 
   for (; size > 0; size--, dst++, src++)
-      if (usrc >= (uint8_t *) PHYS_BASE || !get_user (dst, urc))
+      if (src >= (uint8_t *) PHYS_BASE || !get_user (dst, src))
           thread_exit ();
 }
  
@@ -160,7 +160,7 @@ copy_in_string (const char *us)
   if (ks == NULL) 
     thread_exit ();
 
-  for (i = 0; i < PGSIZE; i++)
+  for (size_t i = 0; i < PGSIZE; i++)
     {
       if (us >= (char*) PHYS_BASE || !get_user(i + ks, us++)) {
           palloc_free_page(ks);
@@ -404,7 +404,7 @@ sys_write (int handle, void *usrc_, unsigned size)
       size_t write_amt = size < page_left ? size : page_left;
       off_t retval;
 
-      if (!verify_user(usrc) {
+      if (!verify_user(usrc)) {
           lock_release(&fs_lock);
           thread_exit();
       }
@@ -484,7 +484,7 @@ void syscall_exit (void)
 {
   struct thread *cur = thread_current ();
   struct list_elem *e;
-  struct list_elem *n
+  struct list_elem *n;
    
   for (e = list_begin (&cur->fds); e != list_end (&cur->fds); e = n)
     {
@@ -516,7 +516,7 @@ static bool sys_isdir(int handle) {
     if (!(fd = lookup_fd (handle)))
         return -1;
 
-    return fd->isdir;
+    return fd->isDirectory;
 }
 
 static bool sys_readdir(int handle, char* name) {
@@ -542,7 +542,7 @@ static int sys_inumber (int handle)
     if (!(fd = lookup_fd (handle)))
         return -1;
 
-    if (fd->isdir)
+    if (fd->isDirectory)
         inumber = inode_get_inumber(dir_get_inode((struct dir *)fd->file));
     else
         inumber = inode_get_inumber(file_get_inode(fd->file));

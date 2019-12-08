@@ -10,8 +10,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="2943d6cd-5de8-475b-b689-20eceae6357a" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/userprog/pagedir.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/userprog/pagedir.c" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/userprog/syscall.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/userprog/syscall.c" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
