@@ -150,9 +150,6 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   if (!user) {
-      if (!page_in(fault_addr)) {
-          thread_exit();
-      }
       f->eip = (void (*) (void)) f->eax;
       f->eax = 0;
       return;

@@ -52,6 +52,28 @@ bytes_to_sectors (off_t size)
   return DIV_ROUND_UP (size, BLOCK_SECTOR_SIZE);
 }
 
+
+static size_t
+bytes_to_indirect_sectors (off_t size)
+{
+  if (size <= BLOCK_SECTOR_SIZE*DIRECT_BLOCKS)
+    {
+      return 0;
+    }
+  size -= BLOCK_SECTOR_SIZE*DIRECT_BLOCKS;
+  return DIV_ROUND_UP(size, BLOCK_SECTOR_SIZE*INDIRECT_BLOCK_PTRS_SIZE);
+}
+
+static size_t bytes_to_double_indirect_sector (off_t size)
+{
+  if (size <= BLOCK_SECTOR_SIZE*(DIRECT_BLOCKS +
+				INDIRECT_BLOCKS*INDIRECT_BLOCK_PTRS_SIZE))
+    {
+      return 0;
+    }
+  return DOUBLE_INDIRECT_BLOCKS;
+}
+
 struct indirect_block
   {
     block_sector_t ptr[INDIRECT_BLOCK_PTRS_SIZE];
@@ -447,7 +469,7 @@ void inode_deallocation_double_indirect_block (block_sector_t *ptr,
 }
 
 void inode_deallocation (struct inode *inode) {
-  size_t data_sectors = bytes_to_data_sectors(inode->length);
+  size_t data_sectors = bytes_to_sectors(inode->length);
   size_t indirect_sectors = bytes_to_indirect_sectors(inode->length);
   size_t double_indirect_sector = bytes_to_double_indirect_sector(
 						      inode->length);
@@ -491,8 +513,8 @@ void inode_deallocation_indirect_block (block_sector_t *ptr,
 off_t inode_extend (struct inode *inode, off_t new_length)
 {
   static char zeros[BLOCK_SECTOR_SIZE];
-  size_t new_data_sectors = bytes_to_data_sectors(new_length) - \
-    bytes_to_data_sectors(inode->length);
+  size_t new_data_sectors = bytes_to_sectors(new_length) - \
+    bytes_to_sectors(inode->length);
 
   if (new_data_sectors == 0)
     {
