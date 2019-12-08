@@ -605,7 +605,7 @@ setup_stack (const char *cmd_line, void **esp)
     {
         uint8_t *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
         if (pagedir_get_page (thread_current ()->pagedir, upage) == NULL
-            && pagedir_set_page (thread_current ()->pagedir, upage, cur_page, writable))
+            && pagedir_set_page (thread_current ()->pagedir, upage, cur_page, true))
             return init_cmd_line (cur_page, upage, cmd_line, esp);
         else
             palloc_free_page (cur_page);
