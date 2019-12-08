@@ -168,13 +168,10 @@ process_exit (void)
   struct list_elem *e, *next;
   uint32_t *pd;
 
-  printf ("%s: exit(%d)\n", cur->name, cur->exit_code);
-
   /* Notify parent that we're dead. */
   if (cur->wait_status != NULL) 
     {
       struct wait_status *cs = cur->wait_status;
-      cs->exit_code = cur->exit_code;
       sema_up (&cs->dead);
       release_child (cs);
     }
@@ -312,18 +309,6 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
   bool success = false;
   char *cp;
   int i;
-
-  /* Allocate and activate page directory. */
-  t->pagedir = pagedir_create ();
-  if (t->pagedir == NULL) 
-    goto done;
-  process_activate ();
-
-  /* Create page hash table. */
-  t->pages = malloc (sizeof *t->pages);
-  if (t->pages == NULL)
-    goto done;
-  hash_init (t->pages, page_hash, page_less, NULL);
 
   /* Extract file_name from command line. */
   while (*cmd_line == ' ')
