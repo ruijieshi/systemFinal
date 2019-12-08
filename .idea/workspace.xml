@@ -10,10 +10,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="2943d6cd-5de8-475b-b689-20eceae6357a" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/src/Makefile.build" beforeDir="false" afterPath="$PROJECT_DIR$/src/Makefile.build" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/devices/timer.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/devices/timer.c" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/filesys/Make.vars" beforeDir="false" afterPath="$PROJECT_DIR$/src/filesys/Make.vars" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/filesys/directory.h" beforeDir="false" afterPath="$PROJECT_DIR$/src/filesys/directory.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/filesys/directory.c" beforeDir="false" afterPath="$PROJECT_DIR$/src/filesys/directory.c" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -60,7 +58,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1575756502689</updated>
-      <workItem from="1575756505263" duration="4587000" />
+      <workItem from="1575756505263" duration="5516000" />
     </task>
     <servers />
   </component>
