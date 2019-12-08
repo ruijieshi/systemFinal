@@ -54,7 +54,7 @@ bytes_to_sectors (off_t size)
 
 struct indirect_block
   {
-    block_sector_t ptr[INDIRECT_BLOCK_PTRS_SIZE_SIZE];
+    block_sector_t ptr[INDIRECT_BLOCK_PTRS_SIZE];
   };
 
 /* In-memory inode. */
@@ -65,7 +65,16 @@ struct inode
     int open_cnt;                       /* Number of openers. */
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
-    struct inode_disk data;             /* Inode content. */
+
+    off_t length;                       /* File size in bytes. */
+    off_t read_length;
+    size_t direct_index;
+    size_t indirect_index;
+    size_t double_indirect_index;
+    bool isdir;
+    block_sector_t parent;
+    struct lock lock;
+    block_sector_t ptr[INODE_BLOCK_PTRS_SIZE];
   };
 
 
@@ -100,7 +109,7 @@ static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos) 
 {
   ASSERT (inode != NULL);
-  if (pos < inode->data.length){
+  if (pos < inode->length){
     uint32_t idx;
     uint32_t indirect_block[INDIRECT_BLOCK_PTRS_SIZE];
     if (pos < BLOCK_SECTOR_SIZE*DIRECT_BLOCKS) {
@@ -209,7 +218,6 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
-  block_read (fs_device, inode->sector, &inode->data);
 
   lock_init(&inode->lock);
   struct inode_disk data;
@@ -320,7 +328,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
         break;
 
       struct cache_entry* c_ent = filesys_cache_block_get(sector_idx, false);
-      memcpy(buffer + bytes_read, (uint8_t *) &(c_ent->block + sector_ofs), chunk_size);
+      memcpy(buffer + bytes_read, (uint8_t *) &c_ent->block + sector_ofs, chunk_size);
       
       c_ent->accessed = true;
       c_ent->open_cnt--;
@@ -378,10 +386,11 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       if (chunk_size <= 0)
         break;
 
-      struct cache_entry* c_ent = filesys_cache_block_get(sector_idx, false);
-      memcpy(buffer + bytes_read, (uint8_t *) &(c_ent->block + sector_ofs), chunk_size);
-      
+      struct cache_entry* c_ent = filesys_cache_block_get(sector_idx, true);
+      memcpy ((uint8_t *) &c_ent->block + sector_ofs, buffer + bytes_written,
+       chunk_size);
       c_ent->accessed = true;
+      c_ent->dirty = true;
       c_ent->open_cnt--;
 
       /* Advance. */
@@ -390,7 +399,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       bytes_written += chunk_size;
     }
 
-    inode->read_length = inode_length(inode)
+    inode->read_length = inode_length(inode);
 
   return bytes_written;
 }
