@@ -4,7 +4,7 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include "vm/page.h"
+// #include "vm/page.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -149,13 +149,14 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /* Allow the pager to try to handle it. */
-  if (user && not_present)
-    {
-      if (!page_in (fault_addr))
-        thread_exit ();
+  if (!user) {
+      if (!page_in(fault_addr)) {
+          thread_exit();
+      }
+      f->eip = (void (*) (void)) f->eax;
+      f->eax = 0;
       return;
-    }
+  }
 
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
