@@ -418,13 +418,6 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
 }
 
 static bool install_page (void *upage, void *cur_page, bool writable);
-static bool
-install_page (void *upage, void *cur_page, bool writable)
-{
-    struct thread *t = thread_current ();
-    return (pagedir_get_page (t->pagedir, upage) == NULL
-            && pagedir_set_page (t->pagedir, upage, cur_page, writable));
-}
 
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -612,8 +605,7 @@ init_cmd_line (uint8_t *cur_page, uint8_t *upage, const char *cmd_line,
 static bool
 setup_stack (const char *cmd_line, void **esp)
 {
-    uint8_t *cur_page;
-    cur_page = palloc_get_page (PAL_USER | PAL_ZERO);
+    uint8_t *cur_page = palloc_get_page (PAL_USER | PAL_ZERO);
 
     if (cur_page == NULL) {
         return false;
@@ -627,4 +619,12 @@ setup_stack (const char *cmd_line, void **esp)
         palloc_free_page (cur_page);
 
     return false;
+}
+
+static bool
+install_page (void *upage, void *cur_page, bool writable)
+{
+    struct thread *t = thread_current ();
+    return (pagedir_get_page (t->pagedir, upage) == NULL
+            && pagedir_set_page (t->pagedir, upage, cur_page, writable));
 }
