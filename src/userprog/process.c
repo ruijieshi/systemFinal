@@ -1,5 +1,4 @@
 #include "userprog/process.h"
-#include "userprog/syscall.h"
 #include <debug.h>
 #include <inttypes.h>
 #include <round.h>
@@ -19,8 +18,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-//#include "vm/page.h"
-//#include "vm/frame.h"
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmd_line, void (**eip) (void), void **esp);
@@ -169,11 +167,15 @@ process_exit (void)
   struct thread *cur = thread_current ();
   struct list_elem *e, *next;
   uint32_t *pd;
+
+  /* Close executable (and allow writes). */
   file_close (cur->bin_file);
 
+  /* Notify parent that we're dead. */
   if (cur->wait_status != NULL) 
     {
       struct wait_status *cs = cur->wait_status;
+      printf ("%s: exit(%d)\n", cur->name, cs->exit_code);
       sema_up (&cs->dead);
       release_child (cs);
     }
@@ -489,13 +491,18 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
+      /* Calculate how to fill this page.
+         We will read PAGE_READ_BYTES bytes from FILE
+         and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+      /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
-      
       if (kpage == NULL)
         return false;
 
+      /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
           palloc_free_page (kpage);
@@ -510,6 +517,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           return false; 
         }
 
+      /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
@@ -604,9 +612,10 @@ init_cmd_line (uint8_t *kpage, uint8_t *upage, const char *cmd_line,
 static bool
 setup_stack (const char *cmd_line, void **esp) 
 {
-  uint8_t *kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  uint8_t *kpage;
   bool success = false;
 
+  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       uint8_t *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
@@ -618,6 +627,15 @@ setup_stack (const char *cmd_line, void **esp)
   return success;
 }
 
+/* Adds a mapping from user virtual address UPAGE to kernel
+   virtual address KPAGE to the page table.
+   If WRITABLE is true, the user process may modify the page;
+   otherwise, it is read-only.
+   UPAGE must not already be mapped.
+   KPAGE should probably be a page obtained from the user pool
+   with palloc_get_page().
+   Returns true on success, false if UPAGE is already mapped or
+   if memory allocation fails. */
 static bool
 install_page (void *upage, void *kpage, bool writable)
 {
