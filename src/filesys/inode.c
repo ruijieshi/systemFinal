@@ -131,14 +131,9 @@ byte_to_sector (const struct inode *inode, off_t length, off_t pos)
     {
       uint32_t idx;
       uint32_t indirect_block[INDIRECT_BLOCK_PTRS_SIZE];
-      if (pos < BLOCK_SECTOR_SIZE*(DIRECT_BLOCKS +
-					INDIRECT_BLOCKS*INDIRECT_BLOCK_PTRS_SIZE))
+      if (pos < BLOCK_SECTOR_SIZE*DIRECT_BLOCKS)
 	{
-	  pos -= BLOCK_SECTOR_SIZE*DIRECT_BLOCKS;
-	  idx = pos / (BLOCK_SECTOR_SIZE*INDIRECT_BLOCK_PTRS_SIZE) + DIRECT_BLOCKS;
-	  block_read(fs_device, inode->ptr[idx], &indirect_block);
-	  pos %= BLOCK_SECTOR_SIZE*INDIRECT_BLOCK_PTRS_SIZE;
-	  return indirect_block[pos / BLOCK_SECTOR_SIZE];
+	  return inode->ptr[pos / BLOCK_SECTOR_SIZE];
 	}
     }
   else
