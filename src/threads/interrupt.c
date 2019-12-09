@@ -91,7 +91,6 @@ intr_enable (void)
   ASSERT (!intr_context ());
 
   /* Enable interrupts by setting the interrupt flag.
-
      See [IA32-v2b] "STI" and [IA32-v3a] 5.8.1 "Masking Maskable
      Hardware Interrupts". */
   asm volatile ("sti");
@@ -188,7 +187,6 @@ intr_register_ext (uint8_t vec_no, intr_handler_func *handler,
 /* Registers internal interrupt VEC_NO to invoke HANDLER, which
    is named NAME for debugging purposes.  The interrupt handler
    will be invoked with interrupt status LEVEL.
-
    The handler will have descriptor privilege level DPL, meaning
    that it can be invoked intentionally when the processor is in
    the DPL or lower-numbered ring.  In practice, DPL==3 allows
@@ -228,7 +226,6 @@ intr_yield_on_return (void)
 /* 8259A Programmable Interrupt Controller. */
 
 /* Initializes the PICs.  Refer to [8259A] for details.
-
    By default, interrupts 0...15 delivered by the PICs will go to
    interrupt vectors 0...15.  Those vectors are also used for CPU
    traps and exceptions, so we reprogram the PICs so that
@@ -275,7 +272,6 @@ pic_end_of_interrupt (int irq)
 }
 
 /* Creates an gate that invokes FUNCTION.
-
    The gate has descriptor privilege level DPL, meaning that it
    can be invoked intentionally when the processor is in the DPL
    or lower-numbered ring.  In practice, DPL==3 allows user mode
@@ -284,7 +280,6 @@ pic_end_of_interrupt (int irq)
    DPL==0 to be invoked.  See [IA32-v3a] sections 4.5 "Privilege
    Levels" and 4.8.1.1 "Accessing Nonconforming Code Segments"
    for further discussion.
-
    TYPE must be either 14 (for an interrupt gate) or 15 (for a
    trap gate).  The difference is that entering an interrupt gate
    disables interrupts, but entering a trap gate does not.  See
@@ -360,7 +355,7 @@ intr_handler (struct intr_frame *frame)
       in_external_intr = true;
       yield_on_return = false;
     }
-    
+
   /* Invoke the interrupt's handler. */
   handler = intr_handlers[frame->vec_no];
   if (handler != NULL)
