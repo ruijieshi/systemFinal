@@ -37,8 +37,6 @@
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
 #endif
-#include "vm/frame.h"
-#include "vm/swap.h"
 
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
@@ -142,7 +140,6 @@ main (void)
 /* Clear the "BSS", a segment that should be initialized to
    zeros.  It isn't actually stored on disk or zeroed by the
    kernel loader, so we have to zero it ourselves.
-
    The start and end of the BSS segment is recorded by the
    linker as _start_bss and _end_bss.  See kernel.lds. */
 static void
@@ -268,7 +265,6 @@ parse_options (char **argv)
 
   /* Initialize the random number generator based on the system
      time.  This has no effect if an "-rs" option was specified.
-
      When running under Bochs, this is not enough by itself to
      get a good seed value, because the pintos script sets the
      initial time to a predictable value, not to the local time,
