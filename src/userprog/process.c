@@ -417,6 +417,7 @@ load (const char *cmd_line, void (**eip) (void), void **esp)
     return success;
 }
 
+static bool install_page (void *upage, void *cur_page, bool writable);
 static bool
 install_page (void *upage, void *cur_page, bool writable)
 {
@@ -612,16 +613,18 @@ static bool
 setup_stack (const char *cmd_line, void **esp)
 {
     uint8_t *cur_page;
-    bool success = false;
-
     cur_page = palloc_get_page (PAL_USER | PAL_ZERO);
-    if (cur_page != NULL)
-    {
-        uint8_t *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
-        if (install_page (upage, cur_page, true))
-            success = init_cmd_line (cur_page, upage, cmd_line, esp);
-        else
-            palloc_free_page (cur_page);
+
+    if (cur_page == NULL) {
+        return false;
     }
-    return success;
+
+    uint8_t *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
+
+    if (install_page (upage, cur_page, true))
+        return init_cmd_line (cur_page, upage, cmd_line, esp);
+    else
+        palloc_free_page (cur_page);
+
+    return false;
 }
