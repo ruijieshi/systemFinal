@@ -6,7 +6,7 @@
 #include "filesys/inode.h"
 #include "threads/malloc.h"
 
-bool is_directory_empty (struct inode *inode);
+bool dir_is_empty (struct inode *inode);
 
 /* A directory. */
 struct dir 
@@ -23,12 +23,10 @@ struct dir_entry
     bool in_use;                        /* In use or free? */
   };
 
-/* Creates a directory with space for ENTRY_CNT entries in the
-   given SECTOR.  Returns true if successful, false on failure. */
 bool
 dir_create (block_sector_t sector, size_t entry_cnt)
 {
-    return inode_create (sector, entry_cnt * sizeof (struct dir_entry), true);
+  return inode_create (sector, entry_cnt * sizeof (struct dir_entry), true);
 }
 
 /* Opens and returns the directory for the given INODE, of which
@@ -125,12 +123,14 @@ dir_lookup (const struct dir *dir, const char *name,
 
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
+
   inode_lock(dir_get_inode((struct dir *) dir));
   if (lookup (dir, name, &e, NULL))
     *inode = inode_open (e.inode_sector);
   else
     *inode = NULL;
   inode_unlock(dir_get_inode((struct dir *) dir));
+
   return *inode != NULL;
 }
 
@@ -150,6 +150,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
+  inode_lock(dir_get_inode(dir));
   /* Check NAME for validity. */
   if (*name == '\0' || strlen (name) > NAME_MAX)
     goto done;
@@ -158,10 +159,11 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   if (lookup (dir, name, NULL, NULL))
     goto done;
 
-  if (!inode_add_parent(inode_get_inumber(dir_get_inode(dir)), inode_sector))
-  {
-    goto done;
-  }
+  if (!inode_add_parent(inode_get_inumber(dir_get_inode(dir)),
+			inode_sector))
+    {
+      goto done;
+    }
 
   /* Set OFS to offset of free slot.
      If there are no free slots, then it will be set to the
@@ -199,6 +201,7 @@ dir_remove (struct dir *dir, const char *name)
 
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
+
   inode_lock(dir_get_inode(dir));
   /* Find directory entry. */
   if (!lookup (dir, name, &e, &ofs))
@@ -209,12 +212,12 @@ dir_remove (struct dir *dir, const char *name)
   if (inode == NULL)
     goto done;
 
- /* Check if directory to be deleted is used by other thread */
- if (inode_is_dir(inode) && inode_get_open_cnt(inode) > 1)
+  /* Directory to be deleted is used by other processes */
+  if (inode_is_dir(inode) && inode_get_open_cnt(inode) > 1)
     goto done;
 
- /* Check if directory to be deleted contains some files */
- if (inode_is_dir(inode) && !is_directory_empty(inode))
+  /* Directory to be deleted is nonempty */
+  if (inode_is_dir(inode) && !dir_is_empty(inode))
     goto done;
 
   /* Erase directory entry. */
@@ -246,50 +249,47 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
       if (e.in_use)
         {
           strlcpy (name, e.name, NAME_MAX + 1);
-          inode_unlock(dir_get_inode(dir));
+	  inode_unlock(dir_get_inode(dir));
           return true;
         } 
     }
-    inode_unlock(dir_get_inode(dir));
+  inode_unlock(dir_get_inode(dir));
   return false;
 }
 
-/* check is the given directory is root directory */
-bool dir_is_root (struct dir* dir)
-{
-    if (!dir)
-    {
-        return false;
-    }
-    if (inode_get_inumber(dir_get_inode(dir)) == ROOT_DIR_SECTOR)
-    {
-        return true;
-    }
-    return false;
-}
-
-/* check is the given directory has parent directory */
 bool dir_get_parent (struct dir* dir, struct inode **inode)
 {
 
-    block_sector_t sector = inode_get_parent(dir_get_inode(dir));
-    *inode = inode_open (sector);
-    return *inode != NULL;
+  block_sector_t sector = inode_get_parent(dir_get_inode(dir));
+  *inode = inode_open (sector);
+  return *inode != NULL;
 }
 
-/* check is the given directory empty or not*/
-bool is_directory_empty (struct inode *inode)
+bool dir_is_root (struct dir* dir)
 {
-    struct dir_entry e;
-    off_t pos = 0;
-
-    while (inode_read_at (inode, &e, sizeof e, pos) == sizeof e)
+  if (!dir)
     {
-        pos += sizeof e;
-        if (e.in_use)
-        {
-            return false;
-        }
+      return false;
     }
-    return true;
+  if (inode_get_inumber(dir_get_inode(dir)) == ROOT_DIR_SECTOR)
+    {
+      return true;
+    }
+  return false;
+}
+
+bool dir_is_empty (struct inode *inode)
+{
+  struct dir_entry e;
+  off_t pos = 0;
+
+  while (inode_read_at (inode, &e, sizeof e, pos) == sizeof e) 
+    {
+      pos += sizeof e;
+      if (e.in_use)
+        {
+          return false;
+        } 
+    }
+  return true;
 }
