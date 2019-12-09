@@ -144,17 +144,6 @@ byte_to_sector (const struct inode *inode, off_t length, off_t pos)
 	  pos %= BLOCK_SECTOR_SIZE*INDIRECT_BLOCK_PTRS_SIZE;
 	  return indirect_block[pos / BLOCK_SECTOR_SIZE];
 	}
-      else
-	{
-	  block_read(fs_device, inode->ptr[DOUBLE_INDIRECT_INDEX],
-		     &indirect_block);
-	  pos -= BLOCK_SECTOR_SIZE*(DIRECT_BLOCKS +
-				    INDIRECT_BLOCKS*INDIRECT_BLOCK_PTRS_SIZE);
-	  idx = pos / (BLOCK_SECTOR_SIZE*INDIRECT_BLOCK_PTRS_SIZE);
-	  block_read(fs_device, indirect_block[idx], &indirect_block);
-	  pos %= BLOCK_SECTOR_SIZE*INDIRECT_BLOCK_PTRS_SIZE;
-	  return indirect_block[pos / BLOCK_SECTOR_SIZE];
-	}
     }
   else
     {
